@@ -73,8 +73,8 @@ const (
 	ConditionTypeBaz = "Baz"
 )
 
-func (t *CustomObject) StatusConditions() status.ConditionSet {
-	return status.NewReadyConditions(ConditionTypeFoo, ConditionTypeBar).For(t)
+func (t *CustomObject) StatusConditions(opts ...status.ForOption) status.ConditionSet {
+	return status.NewReadyConditions(ConditionTypeFoo, ConditionTypeBar).For(t, opts...)
 }
 
 func (t *CustomObject) GetConditions() []status.Condition {
