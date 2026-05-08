@@ -20,6 +20,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/tools/record"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,7 +36,8 @@ type Controller[T Object] struct {
 	additionalMetricFields        map[string]string
 	additionalGaugeMetricFields   map[string]string
 	kubeClient                    client.Client
-	eventRecorder                 record.EventRecorder
+	eventRecorder                 events.EventRecorder
+	deprecatedEventRecorder       record.EventRecorder
 	observedConditions            sync.Map // map[reconcile.Request]ConditionSet
 	observedGaugeLabels           sync.Map // map[reconcile.Request]map[string]string
 	observedFinalizers            sync.Map // map[reconcile.Request]Finalizer
@@ -107,7 +109,7 @@ func WitMaxConcurrentReconciles(m int) func(*Option) {
 	}
 }
 
-func NewController[T Object](client client.Client, eventRecorder record.EventRecorder, opts ...option.Function[Option]) *Controller[T] {
+func NewController[T Object](client client.Client, eventRecorder events.EventRecorder, opts ...option.Function[Option]) *Controller[T] {
 	options := option.Resolve(opts...)
 	obj := reflect.New(reflect.TypeOf(*new(T)).Elem()).Interface().(runtime.Object)
 	obj.GetObjectKind().SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
@@ -151,6 +153,7 @@ func NewController[T Object](client client.Client, eventRecorder record.EventRec
 }
 
 func (c *Controller[T]) Register(_ context.Context, m manager.Manager) error {
+	c.deprecatedEventRecorder = m.GetEventRecorderFor(fmt.Sprintf("operatorpkg.%s.status", strings.ToLower(c.gvk.Kind))) //nolint:staticcheck // emitting v1.Events for backward compatibility
 	return controllerruntime.NewControllerManagedBy(m).
 		For(object.New[T]()).
 		WithOptions(controller.Options{MaxConcurrentReconciles: c.maxConcurrentReconciles}).
@@ -166,7 +169,7 @@ type GenericObjectController[T client.Object] struct {
 	*Controller[*UnstructuredAdapter[T]]
 }
 
-func NewGenericObjectController[T client.Object](client client.Client, eventRecorder record.EventRecorder, opts ...option.Function[Option]) *GenericObjectController[T] {
+func NewGenericObjectController[T client.Object](client client.Client, eventRecorder events.EventRecorder, opts ...option.Function[Option]) *GenericObjectController[T] {
 	return &GenericObjectController[T]{
 		Controller: NewController[*UnstructuredAdapter[T]](client, eventRecorder, opts...),
 	}
@@ -236,7 +239,7 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 			}
 			if finalizers, ok := c.observedFinalizers.LoadAndDelete(req); ok {
 				for _, finalizer := range finalizers.([]string) {
-					c.eventRecorder.Event(o, v1.EventTypeNormal, "Finalized", fmt.Sprintf("Finalized %s", finalizer))
+					c.emitEvent(o, v1.EventTypeNormal, "Finalized", "Finalized", "Finalized %s", finalizer)
 				}
 			}
 			return reconcile.Result{}, nil
@@ -248,7 +251,7 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 	observedFinalizers, _ := c.observedFinalizers.Swap(req, o.GetFinalizers())
 	if observedFinalizers != nil {
 		for _, finalizer := range lo.Without(observedFinalizers.([]string), o.GetFinalizers()...) {
-			c.eventRecorder.Event(o, v1.EventTypeNormal, "Finalized", fmt.Sprintf("Finalized %s", finalizer))
+			c.emitEvent(o, v1.EventTypeNormal, "Finalized", "Finalized", "Finalized %s", finalizer)
 		}
 	}
 
@@ -347,15 +350,25 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 			pmetrics.LabelType:         observedCondition.Type,
 			MetricLabelConditionStatus: string(observedCondition.Status),
 		}, c.toAdditionalMetricLabels(o))
-		c.eventRecorder.Event(o, v1.EventTypeNormal, condition.Type, fmt.Sprintf("Status condition transitioned, Type: %s, Status: %s -> %s, Reason: %s%s",
+		c.emitEvent(o, v1.EventTypeNormal, condition.Type, "StatusConditionTransitioned",
+			"Status condition transitioned, Type: %s, Status: %s -> %s, Reason: %s%s",
 			condition.Type,
 			observedCondition.Status,
 			condition.Status,
 			condition.Reason,
 			lo.Ternary(condition.Message != "", fmt.Sprintf(", Message: %s", condition.Message), ""),
-		))
+		)
 	}
 	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+}
+
+// emitEvent emits an event via both the new events API and the deprecated v1 Events API
+// for backward compatibility with downstream consumers that watch v1.Events.
+func (c *Controller[T]) emitEvent(o client.Object, eventtype, reason, action, noteFmt string, args ...interface{}) {
+	c.eventRecorder.Eventf(o, nil, eventtype, reason, action, noteFmt, args...)
+	if c.deprecatedEventRecorder != nil {
+		c.deprecatedEventRecorder.Eventf(o, eventtype, reason, noteFmt, args...)
+	}
 }
 
 func (c *Controller[T]) incCounterMetric(current pmetrics.CounterMetric, deprecated pmetrics.CounterMetric, labels, additionalLabels map[string]string) {
