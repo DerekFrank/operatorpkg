@@ -1162,6 +1162,49 @@ var _ = Describe("Generic Controller", func() {
 		Expect(GetMetric("operator_testgenericobject_status_condition_current_status_seconds", conditionLabels(ConditionTypeBar, metav1.ConditionFalse))).To(BeNil())
 		Expect(GetMetric("operator_testgenericobject_status_condition_current_status_seconds", conditionLabels(ConditionTypeBar, metav1.ConditionUnknown))).To(BeNil())
 	})
+	It("should not emit a synthetic Ready condition metric for objects without one", func() {
+		testObject := test.Object(&TestGenericObject{})
+		gvk := object.GVK(testObject)
+		testObject.Status = TestGenericStatus{
+			Conditions: []metav1.Condition{
+				{Type: ConditionTypeFoo, Status: metav1.ConditionTrue},
+			},
+		}
+
+		ExpectApplied(ctx, kubeClient, testObject)
+		ExpectReconciled(ctx, genericController, testObject)
+
+		// The observed Foo condition is emitted.
+		Expect(GetMetric("operator_status_condition_count", conditionLabelsWithGroupKind(gvk, ConditionTypeFoo, metav1.ConditionTrue)).GetGauge().GetValue()).To(BeEquivalentTo(1))
+
+		// No Ready condition is present on the object, so the generic controller must not
+		// fabricate a Ready=Unknown metric for it, across either metric family.
+		Expect(GetMetric("operator_status_condition_count", conditionLabelsWithGroupKind(gvk, status.ConditionReady, metav1.ConditionTrue))).To(BeNil())
+		Expect(GetMetric("operator_status_condition_count", conditionLabelsWithGroupKind(gvk, status.ConditionReady, metav1.ConditionFalse))).To(BeNil())
+		Expect(GetMetric("operator_status_condition_count", conditionLabelsWithGroupKind(gvk, status.ConditionReady, metav1.ConditionUnknown))).To(BeNil())
+		Expect(GetMetric("operator_status_condition_current_status_seconds", conditionLabelsWithGroupKind(gvk, status.ConditionReady, metav1.ConditionUnknown))).To(BeNil())
+		Expect(GetMetric("operator_testgenericobject_status_condition_count", conditionLabels(status.ConditionReady, metav1.ConditionUnknown))).To(BeNil())
+		Expect(GetMetric("operator_testgenericobject_status_condition_current_status_seconds", conditionLabels(status.ConditionReady, metav1.ConditionUnknown))).To(BeNil())
+	})
+	It("should emit a Ready condition metric for objects that define one", func() {
+		// Objects like corev1.Node carry a real, persisted Ready condition. Skipping
+		// initialization of absent conditions must not stop us from reporting a Ready
+		// that is actually present on the object.
+		testObject := test.Object(&TestGenericObject{})
+		gvk := object.GVK(testObject)
+		testObject.Status = TestGenericStatus{
+			Conditions: []metav1.Condition{
+				{Type: status.ConditionReady, Status: metav1.ConditionTrue},
+			},
+		}
+
+		ExpectApplied(ctx, kubeClient, testObject)
+		ExpectReconciled(ctx, genericController, testObject)
+
+		Expect(GetMetric("operator_status_condition_count", conditionLabelsWithGroupKind(gvk, status.ConditionReady, metav1.ConditionTrue)).GetGauge().GetValue()).To(BeEquivalentTo(1))
+		Expect(GetMetric("operator_status_condition_current_status_seconds", conditionLabelsWithGroupKind(gvk, status.ConditionReady, metav1.ConditionTrue)).GetGauge().GetValue()).ToNot(BeZero())
+		Expect(GetMetric("operator_testgenericobject_status_condition_count", conditionLabels(status.ConditionReady, metav1.ConditionTrue)).GetGauge().GetValue()).To(BeEquivalentTo(1))
+	})
 	It("should emit transition total metrics for abnormal conditions", func() {
 		testObject := test.Object(&TestGenericObject{})
 		gvk := object.GVK(testObject)
