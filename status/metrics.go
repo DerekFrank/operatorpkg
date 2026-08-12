@@ -13,6 +13,12 @@ const (
 	MetricLabelNamespace       = "namespace"
 	MetricLabelName            = "name"
 	MetricLabelConditionStatus = "status"
+	// MetricLabelToConditionStatus labels the transition_seconds histogram with
+	// the status the condition transitioned TO. Combined with the existing
+	// "status" label (the status being left), this lets consumers distinguish
+	// how a dwell ended -- e.g. how long a condition was unhealthy
+	// (status="False") before it recovered (to_status="True").
+	MetricLabelToConditionStatus = "to_status"
 )
 
 const (
@@ -33,12 +39,13 @@ func conditionDurationMetric(objectName string, buckets []float64, additionalLab
 			Namespace: pmetrics.Namespace,
 			Subsystem: subsystem,
 			Name:      "transition_seconds",
-			Help:      "The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes",
+			Help:      "The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes",
 			Buckets:   buckets,
 		},
 		append([]string{
 			pmetrics.LabelType,
 			MetricLabelConditionStatus,
+			MetricLabelToConditionStatus,
 		}, additionalLabels...),
 	)
 }
