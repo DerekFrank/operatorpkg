@@ -344,8 +344,9 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 		}
 		duration := condition.LastTransitionTime.Time.Sub(observedCondition.LastTransitionTime.Time).Seconds()
 		c.observeHistogram(c.ConditionDuration, ConditionDuration, duration, map[string]string{
-			pmetrics.LabelType:         observedCondition.Type,
-			MetricLabelConditionStatus: string(observedCondition.Status),
+			pmetrics.LabelType:           observedCondition.Type,
+			MetricLabelConditionStatus:   string(observedCondition.Status),
+			MetricLabelToConditionStatus: string(condition.Status),
 		}, c.toAdditionalMetricLabels(o))
 		c.eventRecorder.Event(o, v1.EventTypeNormal, condition.Type, fmt.Sprintf("Status condition transitioned, Type: %s, Status: %s -> %s, Reason: %s%s",
 			condition.Type,
