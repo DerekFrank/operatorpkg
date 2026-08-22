@@ -35,11 +35,11 @@ const (
 var (
 	Namespace = pmetrics.Label{
 		Name: MetricLabelNamespace,
-		Help: "The namespace of the object the status-condition metric describes.",
+		Help: "The namespace of the object the metric describes.",
 	}
 	Name = pmetrics.Label{
 		Name: MetricLabelName,
-		Help: "The name of the object the status-condition metric describes.",
+		Help: "The name of the object the metric describes.",
 	}
 	ConditionStatus = pmetrics.Label{
 		Name: MetricLabelConditionStatus,
