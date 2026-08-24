@@ -27,6 +27,14 @@ const (
 	TerminationSubsystem = "termination"
 )
 
+// conditionStatusValues documents the stable set of values a condition status
+// dimension can take, shared by the ConditionStatus and ToConditionStatus labels.
+var conditionStatusValues = []pmetrics.Value{
+	{Name: string(metav1.ConditionTrue), Help: "The condition holds."},
+	{Name: string(metav1.ConditionFalse), Help: "The condition does not hold."},
+	{Name: string(metav1.ConditionUnknown), Help: "The condition's state has not yet been determined."},
+}
+
 // Package-local metric dimensions specific to status-condition metrics. These
 // are co-located with their name consts (rather than in the shared metrics
 // package) because they are only emitted by the status controllers. The
@@ -43,21 +51,14 @@ var (
 	}
 	ConditionStatus = pmetrics.Label{
 		Name: MetricLabelConditionStatus,
-		Help: "The status of the condition (the state being left, for transition metrics).",
-		Values: []string{
-			string(metav1.ConditionTrue),
-			string(metav1.ConditionFalse),
-			string(metav1.ConditionUnknown),
-		},
+		Help: "The status of a status condition (e.g. the `Ready` condition). For " +
+			"transition metrics this is the state being left.",
+		Values: conditionStatusValues,
 	}
 	ToConditionStatus = pmetrics.Label{
-		Name: MetricLabelToConditionStatus,
-		Help: "The status the condition transitioned to, for transition metrics.",
-		Values: []string{
-			string(metav1.ConditionTrue),
-			string(metav1.ConditionFalse),
-			string(metav1.ConditionUnknown),
-		},
+		Name:   MetricLabelToConditionStatus,
+		Help:   "The status a condition transitioned to, for transition metrics.",
+		Values: conditionStatusValues,
 	}
 )
 

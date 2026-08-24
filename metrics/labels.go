@@ -21,8 +21,19 @@ type Label struct {
 	// Help is human-readable documentation for the dimension.
 	Help string
 	// Values, when non-empty, enumerates the stable set of values the dimension
-	// can take. Every entry MUST be sourced from a const, never a magic string.
-	Values []string
+	// can take, each with its own documentation. Every value's Name MUST be
+	// sourced from a const, never a magic string.
+	Values []Value
+}
+
+// Value documents one of the stable values a metric dimension (Label) can take.
+type Value struct {
+	// Name is the dimension value. It MUST be sourced from a const, never a magic
+	// string.
+	Name string
+	// Help is human-readable documentation for this value: what it means and,
+	// where useful, why the dimension takes it.
+	Help string
 }
 
 // Shared operator metric dimensions. The label-name consts (LabelGroup, etc.)
