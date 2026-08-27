@@ -6,6 +6,7 @@ import (
 	pmetrics "github.com/awslabs/operatorpkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -24,6 +25,41 @@ const (
 const (
 	MetricSubsystem      = "status_condition"
 	TerminationSubsystem = "termination"
+)
+
+// conditionStatusValues documents the stable set of values a condition status
+// dimension can take, shared by the ConditionStatus and ToConditionStatus labels.
+var conditionStatusValues = []pmetrics.Value{
+	{Name: string(metav1.ConditionTrue), Help: "The condition holds."},
+	{Name: string(metav1.ConditionFalse), Help: "The condition does not hold."},
+	{Name: string(metav1.ConditionUnknown), Help: "The condition's state has not yet been determined."},
+}
+
+// Package-local metric dimensions specific to status-condition metrics. These
+// are co-located with their name consts (rather than in the shared metrics
+// package) because they are only emitted by the status controllers. The
+// label-name consts above remain the values used in the metric label-names
+// slices; these Label vars carry the documentation keyed by the same name.
+var (
+	Namespace = pmetrics.Label{
+		Name: MetricLabelNamespace,
+		Help: "The namespace of the object the metric describes.",
+	}
+	Name = pmetrics.Label{
+		Name: MetricLabelName,
+		Help: "The name of the object the metric describes.",
+	}
+	ConditionStatus = pmetrics.Label{
+		Name: MetricLabelConditionStatus,
+		Help: "The status of a status condition (e.g. the `Ready` condition). For " +
+			"transition metrics this is the state being left.",
+		Values: conditionStatusValues,
+	}
+	ToConditionStatus = pmetrics.Label{
+		Name:   MetricLabelToConditionStatus,
+		Help:   "The status a condition transitioned to, for transition metrics.",
+		Values: conditionStatusValues,
+	}
 )
 
 // Cardinality is limited to # objects * # conditions * # objectives
