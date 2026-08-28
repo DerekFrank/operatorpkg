@@ -63,9 +63,9 @@ var (
 )
 
 // Cardinality is limited to # objects * # conditions * # objectives
-var ConditionDuration = conditionDurationMetric("", nil, pmetrics.LabelGroup, pmetrics.LabelKind)
+var ConditionDuration = conditionDurationMetric("", nil, pmetrics.Group, pmetrics.Kind)
 
-func conditionDurationMetric(objectName string, buckets []float64, additionalLabels ...string) pmetrics.ObservationMetric {
+func conditionDurationMetric(objectName string, buckets []float64, additionalLabels ...pmetrics.Label) pmetrics.ObservationMetric {
 	subsystem := lo.Ternary(len(objectName) == 0, MetricSubsystem, fmt.Sprintf("%s_%s", objectName, MetricSubsystem))
 	buckets = lo.Ternary(len(buckets) == 0, prometheus.DefBuckets, buckets)
 
@@ -78,18 +78,18 @@ func conditionDurationMetric(objectName string, buckets []float64, additionalLab
 			Help:      "The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes",
 			Buckets:   buckets,
 		},
-		append([]string{
-			pmetrics.LabelType,
-			MetricLabelConditionStatus,
-			MetricLabelToConditionStatus,
+		append([]pmetrics.Label{
+			pmetrics.Type,
+			ConditionStatus,
+			ToConditionStatus,
 		}, additionalLabels...),
 	)
 }
 
 // Cardinality is limited to # objects * # conditions
-var ConditionCount = conditionCountMetric("", pmetrics.LabelGroup, pmetrics.LabelKind)
+var ConditionCount = conditionCountMetric("", pmetrics.Group, pmetrics.Kind)
 
-func conditionCountMetric(objectName string, additionalLabels ...string) pmetrics.GaugeMetric {
+func conditionCountMetric(objectName string, additionalLabels ...pmetrics.Label) pmetrics.GaugeMetric {
 	subsystem := lo.Ternary(len(objectName) == 0, MetricSubsystem, fmt.Sprintf("%s_%s", objectName, MetricSubsystem))
 
 	return pmetrics.NewPrometheusGauge(
@@ -100,12 +100,12 @@ func conditionCountMetric(objectName string, additionalLabels ...string) pmetric
 			Name:      "count",
 			Help:      "The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0",
 		},
-		append([]string{
-			MetricLabelNamespace,
-			MetricLabelName,
-			pmetrics.LabelType,
-			MetricLabelConditionStatus,
-			pmetrics.LabelReason,
+		append([]pmetrics.Label{
+			Namespace,
+			Name,
+			pmetrics.Type,
+			ConditionStatus,
+			pmetrics.Reason,
 		}, additionalLabels...),
 	)
 }
@@ -113,9 +113,9 @@ func conditionCountMetric(objectName string, additionalLabels ...string) pmetric
 // Cardinality is limited to # objects * # conditions
 // NOTE: This metric is based on a requeue so it won't show the current status seconds with extremely high accuracy.
 // This metric is useful for aggregations. If you need a high accuracy metric, use operator_status_condition_last_transition_time_seconds
-var ConditionCurrentStatusSeconds = conditionCurrentStatusSecondsMetric("", pmetrics.LabelGroup, pmetrics.LabelKind)
+var ConditionCurrentStatusSeconds = conditionCurrentStatusSecondsMetric("", pmetrics.Group, pmetrics.Kind)
 
-func conditionCurrentStatusSecondsMetric(objectName string, additionalLabels ...string) pmetrics.GaugeMetric {
+func conditionCurrentStatusSecondsMetric(objectName string, additionalLabels ...pmetrics.Label) pmetrics.GaugeMetric {
 	subsystem := lo.Ternary(len(objectName) == 0, MetricSubsystem, fmt.Sprintf("%s_%s", objectName, MetricSubsystem))
 
 	return pmetrics.NewPrometheusGauge(
@@ -126,20 +126,20 @@ func conditionCurrentStatusSecondsMetric(objectName string, additionalLabels ...
 			Name:      "current_status_seconds",
 			Help:      "The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes",
 		},
-		append([]string{
-			MetricLabelNamespace,
-			MetricLabelName,
-			pmetrics.LabelType,
-			MetricLabelConditionStatus,
-			pmetrics.LabelReason,
+		append([]pmetrics.Label{
+			Namespace,
+			Name,
+			pmetrics.Type,
+			ConditionStatus,
+			pmetrics.Reason,
 		}, additionalLabels...),
 	)
 }
 
 // Cardinality is limited to # objects * # conditions
-var ConditionTransitionsTotal = conditionTransitionsTotalMetric("", pmetrics.LabelGroup, pmetrics.LabelKind)
+var ConditionTransitionsTotal = conditionTransitionsTotalMetric("", pmetrics.Group, pmetrics.Kind)
 
-func conditionTransitionsTotalMetric(objectName string, additionalLabels ...string) pmetrics.CounterMetric {
+func conditionTransitionsTotalMetric(objectName string, additionalLabels ...pmetrics.Label) pmetrics.CounterMetric {
 	subsystem := lo.Ternary(len(objectName) == 0, MetricSubsystem, fmt.Sprintf("%s_%s", objectName, MetricSubsystem))
 
 	return pmetrics.NewPrometheusCounter(
@@ -150,18 +150,18 @@ func conditionTransitionsTotalMetric(objectName string, additionalLabels ...stri
 			Name:      "transitions_total",
 			Help:      "The count of transitions of a given object, type and status.",
 		},
-		append([]string{
-			pmetrics.LabelType,
-			MetricLabelConditionStatus,
-			pmetrics.LabelReason,
+		append([]pmetrics.Label{
+			pmetrics.Type,
+			ConditionStatus,
+			pmetrics.Reason,
 		}, additionalLabels...),
 	)
 
 }
 
-var TerminationCurrentTimeSeconds = terminationCurrentTimeSecondsMetric("", pmetrics.LabelGroup, pmetrics.LabelKind)
+var TerminationCurrentTimeSeconds = terminationCurrentTimeSecondsMetric("", pmetrics.Group, pmetrics.Kind)
 
-func terminationCurrentTimeSecondsMetric(objectName string, additionalLabels ...string) pmetrics.GaugeMetric {
+func terminationCurrentTimeSecondsMetric(objectName string, additionalLabels ...pmetrics.Label) pmetrics.GaugeMetric {
 	subsystem := lo.Ternary(len(objectName) == 0, TerminationSubsystem, fmt.Sprintf("%s_%s", objectName, TerminationSubsystem))
 
 	return pmetrics.NewPrometheusGauge(
@@ -172,16 +172,16 @@ func terminationCurrentTimeSecondsMetric(objectName string, additionalLabels ...
 			Name:      "current_time_seconds",
 			Help:      "The current amount of time in seconds that an object has been in terminating state.",
 		},
-		append([]string{
-			MetricLabelNamespace,
-			MetricLabelName,
+		append([]pmetrics.Label{
+			Namespace,
+			Name,
 		}, additionalLabels...),
 	)
 }
 
-var TerminationDuration = terminationDurationMetric("", nil, pmetrics.LabelGroup, pmetrics.LabelKind)
+var TerminationDuration = terminationDurationMetric("", nil, pmetrics.Group, pmetrics.Kind)
 
-func terminationDurationMetric(objectName string, buckets []float64, additionalLabels ...string) pmetrics.ObservationMetric {
+func terminationDurationMetric(objectName string, buckets []float64, additionalLabels ...pmetrics.Label) pmetrics.ObservationMetric {
 	subsystem := lo.Ternary(len(objectName) == 0, TerminationSubsystem, fmt.Sprintf("%s_%s", objectName, TerminationSubsystem))
 	buckets = lo.Ternary(len(buckets) == 0, prometheus.DefBuckets, buckets)
 

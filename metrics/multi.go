@@ -38,6 +38,13 @@ func (mc *MultiCounter) Reset() {
 	}
 }
 
+func (mc *MultiCounter) Labels() []Label {
+	if len(mc.counters) == 0 {
+		return nil
+	}
+	return mc.counters[0].Labels()
+}
+
 type MultiGauge struct {
 	gauges []GaugeMetric
 }
@@ -70,6 +77,13 @@ func (mg *MultiGauge) Reset() {
 	}
 }
 
+func (mg *MultiGauge) Labels() []Label {
+	if len(mg.gauges) == 0 {
+		return nil
+	}
+	return mg.gauges[0].Labels()
+}
+
 type MultiObservation struct {
 	observations []ObservationMetric
 }
@@ -100,4 +114,11 @@ func (mo *MultiObservation) Reset() {
 	for _, o := range mo.observations {
 		o.Reset()
 	}
+}
+
+func (mo *MultiObservation) Labels() []Label {
+	if len(mo.observations) == 0 {
+		return nil
+	}
+	return mo.observations[0].Labels()
 }

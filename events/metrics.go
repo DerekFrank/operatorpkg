@@ -15,9 +15,9 @@ func eventTotalMetric(objectName string) pmetrics.CounterMetric {
 			Name:      "event_total",
 			Help:      "The total of events of a given type for an object.",
 		},
-		[]string{
-			pmetrics.LabelType,
-			pmetrics.LabelReason,
+		[]pmetrics.Label{
+			pmetrics.Type,
+			pmetrics.Reason,
 		},
 	)
 }
