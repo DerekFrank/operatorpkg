@@ -13,6 +13,8 @@ type ObservationMetric interface {
 	Delete(labels map[string]string)
 	DeletePartialMatch(labels map[string]string)
 	Reset()
+	// Labels returns the dimensions the metric was declared with.
+	Labels() []Label
 }
 
 type CounterMetric interface {
@@ -21,6 +23,8 @@ type CounterMetric interface {
 	Delete(labels map[string]string)
 	DeletePartialMatch(labels map[string]string)
 	Reset()
+	// Labels returns the dimensions the metric was declared with.
+	Labels() []Label
 }
 
 type GaugeMetric interface {
@@ -28,4 +32,6 @@ type GaugeMetric interface {
 	Delete(labels map[string]string)
 	DeletePartialMatch(labels map[string]string)
 	Reset()
+	// Labels returns the dimensions the metric was declared with.
+	Labels() []Label
 }
