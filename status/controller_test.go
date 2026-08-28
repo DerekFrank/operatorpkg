@@ -119,6 +119,38 @@ var _ = Describe("Controller", func() {
 		Expect(metric).ToNot(BeNil())
 		Expect(metric.GetHistogram().GetSampleCount()).To(BeNumerically(">", 0))
 	})
+	It("should label transition_seconds with the destination status a condition transitioned to", func() {
+		testObject := test.Object(&test.CustomObject{})
+		gvk := object.GVK(testObject)
+		ExpectApplied(ctx, kubeClient, testObject)
+		ExpectReconciled(ctx, controller, testObject) // observe Foo=Unknown
+
+		// Recover Foo: Unknown -> True
+		time.Sleep(time.Second * 1)
+		testObject.StatusConditions().SetTrue(ConditionTypeFoo)
+		ExpectApplied(ctx, kubeClient, testObject)
+		ExpectReconciled(ctx, controller, testObject)
+
+		// The dwell spent in Unknown is recorded labeled with the state left
+		// (status=Unknown) AND the destination (to_status=True).
+		recovered := map[string]string{
+			pmetrics.LabelType:                  string(ConditionTypeFoo),
+			status.MetricLabelConditionStatus:   string(metav1.ConditionUnknown),
+			status.MetricLabelToConditionStatus: string(metav1.ConditionTrue),
+		}
+		Expect(GetMetric("operator_customobject_status_condition_transition_seconds", recovered).GetHistogram().GetSampleCount()).To(BeNumerically(">", 0))
+		// No sample is recorded for the same dwell under a different destination.
+		Expect(GetMetric("operator_customobject_status_condition_transition_seconds", map[string]string{
+			pmetrics.LabelType:                  string(ConditionTypeFoo),
+			status.MetricLabelConditionStatus:   string(metav1.ConditionUnknown),
+			status.MetricLabelToConditionStatus: string(metav1.ConditionFalse),
+		})).To(BeNil())
+		// The deprecated (group/kind-labeled) variant carries to_status as well.
+		Expect(GetMetric("operator_status_condition_transition_seconds", lo.Assign(recovered, map[string]string{
+			pmetrics.LabelGroup: gvk.Group,
+			pmetrics.LabelKind:  gvk.Kind,
+		})).GetHistogram().GetSampleCount()).To(BeNumerically(">", 0))
+	})
 	It("should emit metrics and events on a transition", func() {
 		testObject := test.Object(&test.CustomObject{})
 		gvk := object.GVK(testObject)
