@@ -6,13 +6,15 @@ package metrics
 type Stage string
 
 const (
-	// Alpha marks an experimental metric that may change or be removed without
-	// notice.
+	// Alpha marks an experimental metric. Any aspect — its name, dimensions,
+	// values, or the metric itself — may change or be removed without notice.
 	Alpha Stage = "alpha"
-	// Beta marks a metric that is fairly stable but whose name, labels, or
-	// semantics may still change before it is promoted.
+	// Beta marks a metric that is fairly stable but not yet guaranteed. Additive
+	// changes are expected, and breaking changes to its dimensions (renaming or
+	// removing a dimension) are still permitted before it is promoted to GA.
 	Beta Stage = "beta"
-	// GA marks a stable metric that is safe to depend on; breaking changes
-	// follow the usual deprecation process.
+	// GA marks a stable metric that is safe to depend on. Only additive changes
+	// are allowed: new dimensions may still be added, but existing dimensions are
+	// not renamed or removed except through the usual deprecation process.
 	GA Stage = "ga"
 )
