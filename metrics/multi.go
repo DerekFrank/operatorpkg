@@ -26,6 +26,12 @@ func (mc *MultiCounter) Delete(labels map[string]string) {
 	}
 }
 
+func (mc *MultiCounter) DeleteByKey(key map[string]string) {
+	for _, c := range mc.counters {
+		c.DeleteByKey(key)
+	}
+}
+
 func (mc *MultiCounter) DeletePartialMatch(labels map[string]string) {
 	for _, c := range mc.counters {
 		c.DeletePartialMatch(labels)
@@ -72,6 +78,18 @@ func (mg *MultiGauge) Delete(labels map[string]string) {
 	}
 }
 
+func (mg *MultiGauge) DeleteByKey(key map[string]string) {
+	for _, g := range mg.gauges {
+		g.DeleteByKey(key)
+	}
+}
+
+func (mg *MultiGauge) ReplaceByKey(key map[string]string, series ...Sample) {
+	for _, g := range mg.gauges {
+		g.ReplaceByKey(key, series...)
+	}
+}
+
 func (mg *MultiGauge) DeletePartialMatch(labels map[string]string) {
 	for _, g := range mg.gauges {
 		g.DeletePartialMatch(labels)
@@ -115,6 +133,12 @@ func (mo *MultiObservation) Observe(v float64, labels map[string]string) {
 func (mo *MultiObservation) Delete(labels map[string]string) {
 	for _, o := range mo.observations {
 		o.Delete(labels)
+	}
+}
+
+func (mo *MultiObservation) DeleteByKey(key map[string]string) {
+	for _, o := range mo.observations {
+		o.DeleteByKey(key)
 	}
 }
 

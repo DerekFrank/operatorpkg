@@ -234,18 +234,10 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 func (c *Controller[T]) cleanupNotFound(req reconcile.Request, o Object) error {
 	c.observedConditions.Delete(req)
 	c.observedGaugeLabels.Delete(req)
-	c.ConditionCount.DeletePartialMatch(map[string]string{
-		MetricLabelNamespace: req.Namespace,
-		MetricLabelName:      req.Name,
-	})
-	c.ConditionCurrentStatusSeconds.DeletePartialMatch(map[string]string{
-		MetricLabelNamespace: req.Namespace,
-		MetricLabelName:      req.Name,
-	})
-	c.TerminationCurrentTimeSeconds.DeletePartialMatch(map[string]string{
-		MetricLabelNamespace: req.Namespace,
-		MetricLabelName:      req.Name,
-	})
+	key := map[string]string{MetricLabelNamespace: req.Namespace, MetricLabelName: req.Name}
+	c.ConditionCount.DeleteByKey(key)
+	c.ConditionCurrentStatusSeconds.DeleteByKey(key)
+	c.TerminationCurrentTimeSeconds.DeleteByKey(key)
 	if obj, ok := c.terminatingObjects.LoadAndDelete(req); ok {
 		c.TerminationDuration.Observe(time.Since(obj.(Object).GetDeletionTimestamp().Time).Seconds(), c.toAdditionalMetricLabels(obj.(Object)))
 	}
@@ -306,21 +298,16 @@ func (c *Controller[T]) reconcileFound(ctx context.Context, req reconcile.Reques
 
 	for _, observedCondition := range observedConditions.List() {
 		if currentCondition := currentConditions.Get(observedCondition.Type); currentCondition == nil || currentCondition.Status != observedCondition.Status || currentCondition.Reason != observedCondition.Reason || !maps.Equal(c.toAdditionalGaugeMetricLabels(o), observedGaugeLabels) {
-			// We want to check if the additional labels on the object has changed, and if so, delete the metrics with the old labels.
-			c.ConditionCount.DeletePartialMatch(lo.Assign(map[string]string{
+			// The observed series was emitted with the gauge labels of the previous reconcile, so delete it by its exact labels.
+			labels := lo.Assign(map[string]string{
 				MetricLabelNamespace:       req.Namespace,
 				MetricLabelName:            req.Name,
 				pmetrics.LabelType:         observedCondition.Type,
 				MetricLabelConditionStatus: string(observedCondition.Status),
 				pmetrics.LabelReason:       observedCondition.Reason,
-			}, lo.Ternary(!maps.Equal(c.toAdditionalGaugeMetricLabels(o), observedGaugeLabels), observedGaugeLabels, nil)))
-			c.ConditionCurrentStatusSeconds.DeletePartialMatch(lo.Assign(map[string]string{
-				MetricLabelNamespace:       req.Namespace,
-				MetricLabelName:            req.Name,
-				pmetrics.LabelType:         observedCondition.Type,
-				MetricLabelConditionStatus: string(observedCondition.Status),
-				pmetrics.LabelReason:       observedCondition.Reason,
-			}, lo.Ternary(!maps.Equal(c.toAdditionalGaugeMetricLabels(o), observedGaugeLabels), observedGaugeLabels, nil)))
+			}, observedGaugeLabels)
+			c.ConditionCount.Delete(labels)
+			c.ConditionCurrentStatusSeconds.Delete(labels)
 		}
 	}
 
