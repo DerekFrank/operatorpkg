@@ -43,10 +43,12 @@ var conditionStatusValues = []pmetrics.Value{
 var (
 	Namespace = pmetrics.Label{
 		Name: MetricLabelNamespace,
+		Key:  true,
 		Help: "The namespace of the object the metric describes.",
 	}
 	Name = pmetrics.Label{
 		Name: MetricLabelName,
+		Key:  true,
 		Help: "The name of the object the metric describes.",
 	}
 	ConditionStatus = pmetrics.Label{
